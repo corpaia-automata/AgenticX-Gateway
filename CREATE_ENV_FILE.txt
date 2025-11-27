@@ -1,0 +1,10 @@
+IMPORTANT: Create .env file in project root!
+
+Copy this content into a new file named ".env" in the root directory:
+
+VITE_SUPABASE_URL=https://udqohxywiuhxojmffexk.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkcW9oeHl3aXVoeG9qbWZmZXhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQxNDI2NDAsImV4cCI6MjA3OTcxODY0MH0.R_qC_qNpnuiomcLfjKJPURdYdpvMU0jH91-rJyo1ajk
+
+Then restart your dev server!
+
+

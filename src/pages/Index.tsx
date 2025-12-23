@@ -32,9 +32,9 @@ const Index = () => {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold text-foreground tracking-tight">
-              Join the{" "}
+              AGIX International{" "}
               <span className="bg-gradient-gold bg-clip-text text-transparent">
-                Black Card
+                Business
               </span>
               <br />
               Community
@@ -53,7 +53,7 @@ const Index = () => {
                 Get Started
               </Button>
               <Button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/login")}
                 size="lg"
                 variant="secondary"
               >

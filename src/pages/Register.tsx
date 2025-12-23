@@ -35,9 +35,35 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // Sign up the user
+      console.log("🚀 Starting registration process...");
+
+      // Step 1: Validate referral code early (if provided)
+      let referrerId: string | null = null;
+      let referralCodeValid = false;
+
+      if (referralCode) {
+        console.log("🔍 Validating referral code:", referralCode);
+
+        const { data: referrerProfile, error: referrerError } = await supabase
+          .from("profiles")
+          .select("id, referral_code")
+          .eq("referral_code", referralCode.trim().toUpperCase())
+          .single();
+
+        if (referrerError || !referrerProfile) {
+          console.warn("⚠️ Invalid referral code:", referrerError);
+          toast.warning("Invalid referral code. You can still register without it.");
+          referralCodeValid = false;
+        } else {
+          referrerId = referrerProfile.id;
+          referralCodeValid = true;
+          console.log("✅ Referral code validated, referrer ID:", referrerId);
+        }
+      }
+
+      // Step 2: Sign up the user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
         options: {
           data: {
@@ -48,46 +74,248 @@ const Register = () => {
         },
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error("❌ Auth signup error:", authError);
+
+        // Handle specific error types with user-friendly messages
+        if (authError.message.includes("rate limit") || authError.message.includes("too many")) {
+          const friendlyError = new Error(
+            "Too many registration attempts. Please wait a few minutes and try again, " +
+            "or check your email for a confirmation link if you already registered."
+          );
+          friendlyError.name = authError.name;
+          throw friendlyError;
+        }
+
+        throw authError;
+      }
 
       if (!authData.user) {
+        console.error("❌ No user returned from signup");
         throw new Error("Failed to create user");
       }
 
-      // If there's a referral code, update the profile
-      if (referralCode) {
-        // First, find the parent user by referral code
-        const { data: parentProfile, error: parentError } = await supabase
+      console.log("✅ User created successfully:", authData.user.id);
+
+      // Step 3: Wait for profile creation (trigger may create it automatically)
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 4: Check if profile exists and create if needed
+      let profileExists = false;
+      let newUserProfile: any = null;
+
+      console.log("🔍 Checking if profile exists for user:", authData.user.id);
+      const { data: existingProfile, error: profileCheckError } = await supabase
+        .from("profiles")
+        .select("id, referral_code, referred_by")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileCheckError) {
+        console.log("⚠️ Profile check error (might be RLS or not found):", profileCheckError);
+        console.log("Error code:", profileCheckError.code);
+        console.log("Error message:", profileCheckError.message);
+      }
+
+      if (existingProfile && !profileCheckError) {
+        console.log("✅ Profile exists (created by trigger)");
+        profileExists = true;
+        newUserProfile = existingProfile;
+      } else {
+        console.log("⚠️ Profile not found, creating manually...");
+
+        // Wait a bit more for trigger (sometimes takes longer)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Check again if trigger created it
+        const { data: recheckProfile } = await supabase
           .from("profiles")
-          .select("id")
-          .eq("referral_code", referralCode)
+          .select("id, referral_code, referred_by")
+          .eq("id", authData.user.id)
           .single();
 
-        if (parentError || !parentProfile) {
-          console.error("Invalid referral code:", parentError);
-          toast.error("Invalid referral code");
+        if (recheckProfile) {
+          console.log("✅ Profile created by trigger after wait");
+          profileExists = true;
+          newUserProfile = recheckProfile;
         } else {
-          // Update the new user's profile with referred_by
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ referred_by: parentProfile.id })
-            .eq("id", authData.user.id);
+          // Try using RPC function (runs with SECURITY DEFINER, bypasses RLS)
+          console.log("📝 Attempting to create profile via RPC function...");
+          console.log("User ID:", authData.user.id);
+          console.log("User Email:", formData.email.trim());
 
-          if (updateError) {
-            console.error("Error updating referral:", updateError);
-          } else {
-            // Increment parent's referral count
-            await supabase.rpc("increment_referral_count", {
-              parent_user_id: parentProfile.id,
+          const { data: generatedReferralCode, error: createError } = await supabase.rpc("create_user_profile", {
+            user_id: authData.user.id,
+            user_email: formData.email.trim(),
+            user_name: formData.name,
+            user_phone: formData.phone,
+          });
+
+          if (createError) {
+            console.error("❌ RPC function error:", createError);
+            console.error("Error details:", {
+              message: createError.message,
+              code: createError.code,
+              details: createError.details,
+              hint: createError.hint,
             });
+
+            // Try direct INSERT as final fallback
+            console.log("🔄 Attempting direct INSERT as fallback...");
+            const { error: insertError } = await supabase
+              .from("profiles")
+              .insert({
+                id: authData.user.id,
+                email: formData.email.trim(),
+                name: formData.name,
+                phone: formData.phone,
+                referral_code: `TEMP-${authData.user.id.substring(0, 8).toUpperCase()}`,
+                referral_count: 0,
+              });
+
+            if (insertError) {
+              console.error("❌ Direct INSERT also failed:", insertError);
+              throw new Error(
+                `Profile creation failed. Both RPC function and direct INSERT failed. ` +
+                `Please ensure the database functions are set up correctly. ` +
+                `Run 'supabase/simple_profile_creation.sql' in your Supabase SQL Editor. ` +
+                `RPC Error: ${createError.message} | INSERT Error: ${insertError.message}`
+              );
+            } else {
+              console.log("✅ Profile created via direct INSERT");
+            }
+          } else {
+            console.log("✅ RPC function succeeded, referral code:", generatedReferralCode);
+          }
+
+          // Wait a moment for the profile to be fully committed
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Fetch the newly created profile with retries
+          let retries = 3;
+          let createdProfile = null;
+
+          while (retries > 0 && !createdProfile) {
+            const { data: profileData, error: fetchError } = await supabase
+              .from("profiles")
+              .select("id, referral_code, referred_by")
+              .eq("id", authData.user.id)
+              .single();
+
+            if (profileData && !fetchError) {
+              createdProfile = profileData;
+              console.log("✅ Profile retrieved successfully");
+            } else {
+              console.warn(`⚠️ Profile fetch attempt ${4 - retries} failed:`, fetchError);
+              if (retries > 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+            }
+            retries--;
+          }
+
+          if (createdProfile) {
+            newUserProfile = createdProfile;
+            profileExists = true;
+          } else {
+            console.error("❌ Could not retrieve profile after creation");
+            console.error("This might be an RLS policy issue. Check your RLS policies for SELECT on profiles table.");
           }
         }
       }
 
-      toast.success("Registration successful!");
-      navigate("/success");
+      if (!profileExists || !newUserProfile) {
+        // Provide detailed error information
+        const errorDetails = {
+          userId: authData.user.id,
+          email: formData.email.trim(),
+          profileExists,
+          hasProfile: !!newUserProfile,
+        };
+        console.error("❌ Profile creation/retrieval failed:", errorDetails);
+
+        throw new Error(
+          `Failed to create or retrieve user profile. ` +
+          `User was created successfully (ID: ${authData.user.id.substring(0, 8)}...), but profile could not be created or accessed. ` +
+          `This might be due to: ` +
+          `1. Missing database functions (run 'supabase/simple_profile_creation.sql') ` +
+          `2. RLS policies blocking SELECT/INSERT on profiles table ` +
+          `3. Database trigger not working. ` +
+          `Please check the browser console for detailed error logs.`
+        );
+      }
+
+      // Step 5: Handle referral linking (if valid referral code was provided)
+      if (referralCode && referralCodeValid && referrerId) {
+        console.log("🔗 Processing referral link...");
+
+        // Prevent self-referral: Check if the new user's ID matches the referrer's ID
+        if (newUserProfile.id === referrerId) {
+          console.warn("⚠️ Self-referral detected, skipping referral link");
+          toast.warning("You cannot refer yourself. Registration successful, but referral was not applied.");
+        } else {
+          // Check if already referred (shouldn't happen, but safety check)
+          if (newUserProfile.referred_by) {
+            console.warn("⚠️ User already has a referrer, skipping referral link");
+            toast.warning("You are already linked to a referrer. Registration successful.");
+          } else {
+            // Update the new user's profile with referred_by
+            const { error: updateError } = await supabase
+              .from("profiles")
+              .update({ referred_by: referrerId })
+              .eq("id", authData.user.id);
+
+            if (updateError) {
+              console.error("❌ Error updating referral:", updateError);
+              toast.error("Registration successful, but failed to link referral. Please contact support.");
+            } else {
+              console.log("✅ Referral linked successfully");
+
+              // Increment parent's referral count
+              const { error: incrementError } = await supabase.rpc("increment_referral_count", {
+                parent_user_id: referrerId,
+              });
+
+              if (incrementError) {
+                console.error("❌ Error incrementing referral count:", incrementError);
+                toast.warning("Registration successful, but failed to update referral count.");
+              } else {
+                console.log("✅ Referral count incremented for referrer");
+                toast.success("Registration successful! Referral linked.");
+              }
+            }
+          }
+        }
+      }
+
+      console.log("🎉 Registration completed successfully!");
+
+      // Always redirect to success page after successful registration
+      // The success page will handle checking for session and showing appropriate content
+      if (authData.session) {
+        toast.success("Registration successful! Welcome!");
+        navigate("/success");
+      } else {
+        // Wait a moment and check again (session might be establishing)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          toast.success("Registration successful! Welcome!");
+          navigate("/success");
+        } else {
+          // If email confirmation is required, session won't be available
+          toast.success("Registration successful! Please check your email to confirm your account.");
+          navigate("/success");
+        }
+      }
     } catch (error: any) {
-      console.error("Registration error:", error);
+      console.error("❌ Registration error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
       toast.error(error.message || "Failed to register");
     } finally {
       setLoading(false);
@@ -183,7 +411,7 @@ const Register = () => {
           <div className="mt-4 text-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <a href="/" className="text-primary hover:underline">
+              <a href="/login" className="text-primary hover:underline">
                 Sign in
               </a>
             </p>

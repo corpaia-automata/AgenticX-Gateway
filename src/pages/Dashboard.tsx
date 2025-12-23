@@ -15,16 +15,17 @@ const Dashboard = () => {
   const [referrals, setReferrals] = useState<any[]>([]);
 
   useEffect(() => {
-    checkAuth();
+    loadDashboardData();
   }, []);
 
-  const checkAuth = async () => {
+  const loadDashboardData = async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
     if (!session) {
-      navigate("/register");
+      // This shouldn't happen due to ProtectedRoute, but handle gracefully
+      setLoading(false);
       return;
     }
 
@@ -37,6 +38,7 @@ const Dashboard = () => {
 
     if (profileError || !profileData) {
       toast.error("Failed to load profile");
+      setLoading(false);
       return;
     }
 
@@ -58,7 +60,7 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/");
+    navigate("/login");
   };
 
   const referralLink = profile

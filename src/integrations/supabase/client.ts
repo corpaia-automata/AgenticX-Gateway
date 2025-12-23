@@ -2,8 +2,44 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Support both VITE_ (Vite standard) and NEXT_PUBLIC_ (for compatibility)
+// In Vite, only VITE_ prefixed variables are exposed to the client
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Validate environment variables with helpful error messages
+if (!SUPABASE_URL) {
+  const errorMsg = [
+    'Missing Supabase URL environment variable.',
+    'Expected one of:',
+    '  - VITE_SUPABASE_URL (recommended for Vite)',
+    '  - NEXT_PUBLIC_SUPABASE_URL',
+    '',
+    'Note: In Vite projects, only VITE_ prefixed variables are exposed to the client.',
+    'Please update your .env file and restart the dev server.'
+  ].join('\n');
+  throw new Error(errorMsg);
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  const errorMsg = [
+    'Missing Supabase Anon Key environment variable.',
+    'Expected one of:',
+    '  - VITE_SUPABASE_PUBLISHABLE_KEY (recommended)',
+    '  - VITE_SUPABASE_ANON_KEY',
+    '  - NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    '',
+    'Note: In Vite projects, only VITE_ prefixed variables are exposed to the client.',
+    'Please update your .env file and restart the dev server.'
+  ].join('\n');
+  throw new Error(errorMsg);
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -15,3 +51,106 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Connection test utility
+export const testConnection = async () => {
+  try {
+    // Check environment variables first
+    const url = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key =
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env.VITE_SUPABASE_ANON_KEY ||
+      import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      return {
+        success: false,
+        error: 'Missing environment variables. Please check your .env file.',
+        envVars: {
+          urlPresent: !!url,
+          keyPresent: !!key,
+        }
+      };
+    }
+
+    // Test 1: Check auth session (lightweight test)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error('❌ Auth connection error:', sessionError);
+      return {
+        success: false,
+        error: sessionError.message,
+        envVars: {
+          urlPresent: !!url,
+          keyPresent: !!key,
+        }
+      };
+    }
+
+    // Test 2: Try a simple query (if tables exist)
+    let databaseTest = {
+      connected: false,
+      tablesExist: false,
+      error: undefined as string | undefined,
+    };
+
+    try {
+      const { error: queryError } = await supabase
+        .from('profiles')
+        .select('count')
+        .limit(1);
+
+      if (queryError) {
+        if (queryError.message.includes('relation') || queryError.message.includes('does not exist')) {
+          databaseTest = {
+            connected: true,
+            tablesExist: false,
+            error: "Tables don't exist yet (run migrations)",
+          };
+        } else {
+          databaseTest = {
+            connected: false,
+            tablesExist: false,
+            error: queryError.message,
+          };
+        }
+      } else {
+        databaseTest = {
+          connected: true,
+          tablesExist: true,
+        };
+      }
+    } catch (queryErr: any) {
+      // Table might not exist yet, which is okay for connection test
+      databaseTest = {
+        connected: true,
+        tablesExist: false,
+        error: queryErr.message || 'Tables may not be created yet',
+      };
+    }
+
+    return {
+      success: true,
+      hasSession: !!session,
+      message: 'Supabase connection successful!',
+      envVars: {
+        urlPresent: true,
+        keyPresent: true,
+        urlValue: url,
+      },
+      authStatus: {
+        connected: true,
+        hasSession: !!session,
+        userEmail: session?.user?.email,
+      },
+      databaseStatus: databaseTest,
+    };
+  } catch (err: any) {
+    console.error('❌ Connection test failed:', err);
+    return {
+      success: false,
+      error: err.message || 'Connection test failed',
+    };
+  }
+};

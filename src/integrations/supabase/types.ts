@@ -67,6 +67,15 @@ export type Database = {
     }
     Functions: {
       generate_referral_code: { Args: never; Returns: string }
+      create_user_profile: {
+        Args: {
+          user_id: string
+          user_email: string
+          user_name: string
+          user_phone: string
+        }
+        Returns: string
+      }
       increment_referral_count: {
         Args: { parent_user_id: string }
         Returns: undefined

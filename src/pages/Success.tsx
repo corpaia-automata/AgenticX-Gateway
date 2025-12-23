@@ -22,8 +22,11 @@ const Success = () => {
       data: { session },
     } = await supabase.auth.getSession();
 
+    // If no session, user might need to confirm email first
+    // Still show success page but with a message to check email
     if (!session) {
-      navigate("/register");
+      console.log("No session found - user may need to confirm email");
+      setLoading(false);
       return;
     }
 
@@ -35,8 +38,9 @@ const Success = () => {
       .single();
 
     if (error || !profileData) {
-      toast.error("Failed to load profile");
-      navigate("/register");
+      console.error("Failed to load profile:", error);
+      // Don't redirect - show success page anyway
+      setLoading(false);
       return;
     }
 
@@ -123,46 +127,62 @@ const Success = () => {
             </ul>
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium text-foreground mb-2 block">
-                Your Referral Link
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={referralLink}
-                  readOnly
-                  className="bg-secondary border-border font-mono text-sm"
-                />
-                <Button onClick={copyLink} size="icon" variant="secondary">
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
+          {!profile ? (
+            <div className="bg-primary/10 border border-primary/20 p-6 rounded-lg text-center space-y-4">
+              <p className="text-primary font-medium">
+                Please check your email to confirm your account.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Once you confirm your email, you'll be able to access your referral link and dashboard.
+              </p>
+              <Button onClick={() => navigate("/login")} variant="secondary">
+                Go to Login
+              </Button>
             </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-2 block">
+                    Your Referral Link
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={referralLink}
+                      readOnly
+                      className="bg-secondary border-border font-mono text-sm"
+                    />
+                    <Button onClick={copyLink} size="icon" variant="secondary">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
 
-            {qrCodeUrl && (
-              <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-lg border-4 border-primary">
-                  <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                {qrCodeUrl && (
+                  <div className="flex justify-center">
+                    <div className="bg-white p-4 rounded-lg border-4 border-primary">
+                      <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button onClick={shareWhatsApp} className="flex-1 bg-[#25D366] hover:bg-[#20BA5A]">
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share via WhatsApp
+                  </Button>
+                  <Button onClick={copyLink} variant="secondary" className="flex-1">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Link
+                  </Button>
                 </div>
               </div>
-            )}
 
-            <div className="flex gap-2">
-              <Button onClick={shareWhatsApp} className="flex-1 bg-[#25D366] hover:bg-[#20BA5A]">
-                <Share2 className="mr-2 h-4 w-4" />
-                Share via WhatsApp
+              <Button onClick={() => navigate("/dashboard")} className="w-full bg-gradient-primary">
+                Go to Dashboard
               </Button>
-              <Button onClick={copyLink} variant="secondary" className="flex-1">
-                <Copy className="mr-2 h-4 w-4" />
-                Copy Link
-              </Button>
-            </div>
-          </div>
-
-          <Button onClick={() => navigate("/dashboard")} className="w-full bg-gradient-primary">
-            Go to Dashboard
-          </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -18,11 +18,21 @@ const Login = () => {
 
   useEffect(() => {
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/dashboard");
+    const checkExistingSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error("Error checking session:", error);
+        return;
       }
-    });
+      
+      if (session) {
+        console.log("Existing session found, redirecting to dashboard");
+        navigate("/dashboard", { replace: true });
+      }
+    };
+    
+    checkExistingSession();
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,18 +40,60 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
+      // Clear any previous errors
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email.trim(),
         password: formData.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific auth errors with user-friendly messages
+        let errorMessage = "Failed to login";
+        
+        if (error.message.includes("Invalid login credentials") || error.message.includes("email")) {
+          errorMessage = "Invalid email or password";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please confirm your email before logging in";
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Too many login attempts. Please try again later";
+        } else {
+          errorMessage = error.message;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // signInWithPassword should always return a session on success
+      if (!data.session) {
+        console.error("No session returned from signInWithPassword");
+        throw new Error("Session not established. Please try again.");
+      }
+
+      // Verify session is stored by checking localStorage
+      const storedSession = await supabase.auth.getSession();
+      if (!storedSession.data.session) {
+        console.error("Session not persisted to storage");
+        throw new Error("Session not saved. Please try again.");
+      }
+
+      console.log("Login successful, session established:", {
+        userId: data.session.user.id,
+        email: data.session.user.email,
+      });
 
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      
+      // Small delay to ensure session is fully persisted before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Navigate to dashboard
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Failed to login");
+      
+      // Display error message
+      const errorMessage = error.message || "Failed to login. Please check your credentials and try again.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

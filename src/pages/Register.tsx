@@ -19,7 +19,9 @@ const Register = () => {
     password: "",
   });
 
-  const referralCode = searchParams.get("ref");
+  // Get referral code from URL and decode it (handle URL encoding)
+  const rawReferralCode = searchParams.get("ref");
+  const referralCode = rawReferralCode ? decodeURIComponent(rawReferralCode).trim() : null;
 
   useEffect(() => {
     // Check if user is already logged in
@@ -40,24 +42,51 @@ const Register = () => {
       // Step 1: Validate referral code early (if provided)
       let referrerId: string | null = null;
       let referralCodeValid = false;
-
+      
       if (referralCode) {
-        console.log("🔍 Validating referral code:", referralCode);
+        // Normalize referral code: trim, uppercase, and remove any whitespace
+        const normalizedCode = referralCode.trim().toUpperCase().replace(/\s+/g, '');
+        console.log("🔍 Validating referral code:", {
+          original: referralCode,
+          normalized: normalizedCode,
+        });
+        
+        // Use the validate_referral_code function (SECURITY DEFINER bypasses RLS)
+        const { data: referrerIdFromFunction, error: functionError } = await supabase.rpc(
+          "validate_referral_code",
+          { code: normalizedCode }
+        );
 
-        const { data: referrerProfile, error: referrerError } = await supabase
-          .from("profiles")
-          .select("id, referral_code")
-          .eq("referral_code", referralCode.trim().toUpperCase())
-          .single();
-
-        if (referrerError || !referrerProfile) {
-          console.warn("⚠️ Invalid referral code:", referrerError);
+        if (functionError) {
+          console.error("❌ Error validating referral code via function:", {
+            code: functionError.code,
+            message: functionError.message,
+            details: functionError.details,
+          });
+          
+          // Check if function doesn't exist
+          if (functionError.message?.includes('function') && functionError.message?.includes('does not exist')) {
+            console.error("❌ validate_referral_code function not found. Please run the SQL script in Supabase.");
+            toast.error(
+              "Referral validation function not set up. Please contact support or register without a referral code."
+            );
+          } else {
+            toast.warning("Could not validate referral code. You can still register without it.");
+          }
+          referralCodeValid = false;
+        } else if (!referrerIdFromFunction) {
+          // Function returned null - code doesn't exist
+          console.warn("⚠️ Referral code not found:", normalizedCode);
           toast.warning("Invalid referral code. You can still register without it.");
           referralCodeValid = false;
         } else {
-          referrerId = referrerProfile.id;
+          // Function returned a valid UUID
+          referrerId = referrerIdFromFunction;
           referralCodeValid = true;
-          console.log("✅ Referral code validated, referrer ID:", referrerId);
+          console.log("✅ Referral code validated successfully via function:", {
+            code: normalizedCode,
+            referrerId: referrerId,
+          });
         }
       }
 

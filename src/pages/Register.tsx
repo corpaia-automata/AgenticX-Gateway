@@ -288,20 +288,55 @@ const Register = () => {
             console.warn("⚠️ User already has a referrer, skipping referral link");
           } else {
             // Apply referral via RPC (handles both referred_by and referral_count)
-            const { error: applyError } = await supabase.rpc("apply_referral", {
+            console.log("📞 Calling apply_referral function...", {
+              new_user_id: authData.user.id,
+              referrer_id: referrerId,
+            });
+
+            const { data: applyData, error: applyError } = await supabase.rpc("apply_referral", {
               new_user_id: authData.user.id,
               referrer_id: referrerId,
             });
 
             if (applyError) {
-              // Log error silently (console only) - do not block registration
+              // Log error with full details
               console.error("❌ Error applying referral:", {
                 error: applyError,
+                message: applyError.message,
+                details: applyError.details,
+                hint: applyError.hint,
                 new_user_id: authData.user.id,
                 referrer_id: referrerId,
               });
+              
+              // Show toast notification so user knows something went wrong
+              toast.error("Referral link failed to apply. Registration successful, but referral not counted.");
             } else {
-              console.log("✅ Referral applied successfully");
+              console.log("✅ Referral applied successfully", applyData);
+              
+              // Verify the update worked by checking the profile
+              const { data: verifyProfile } = await supabase
+                .from("profiles")
+                .select("referred_by, referral_count")
+                .eq("id", authData.user.id)
+                .single();
+              
+              console.log("🔍 Verification - New user profile:", verifyProfile);
+              
+              // Check referrer's updated count
+              const { data: verifyReferrer } = await supabase
+                .from("profiles")
+                .select("referral_count")
+                .eq("id", referrerId)
+                .single();
+              
+              console.log("🔍 Verification - Referrer's count:", verifyReferrer);
+              
+              if (verifyProfile?.referred_by === referrerId) {
+                toast.success("Referral link applied successfully!");
+              } else {
+                console.warn("⚠️ Verification failed: referred_by not set correctly");
+              }
             }
           }
         }

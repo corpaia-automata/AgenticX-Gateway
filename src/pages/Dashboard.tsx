@@ -21,8 +21,9 @@ const Dashboard = () => {
   useEffect(() => {
     loadDashboardData();
 
-    // Set up real-time subscription for profile updates
-    let channel: any = null;
+    // Set up real-time subscriptions for profile updates and new referrals
+    let profileChannel: any = null;
+    let referralsChannel: any = null;
 
     const setupRealtime = async () => {
       const {
@@ -30,7 +31,8 @@ const Dashboard = () => {
       } = await supabase.auth.getSession();
 
       if (session) {
-        channel = supabase
+        // Subscribe to profile updates (for referral_count changes)
+        profileChannel = supabase
           .channel("profile-changes")
           .on(
             "postgres_changes",
@@ -49,14 +51,44 @@ const Dashboard = () => {
             }
           )
           .subscribe();
+
+        // Subscribe to new referrals (when someone uses your referral code)
+        referralsChannel = supabase
+          .channel("referrals-changes")
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "profiles",
+              filter: `referred_by=eq.${session.user.id}`,
+            },
+            async () => {
+              // Reload referrals list when a new referral is added
+              const { data: referralData, error: referralError } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("referred_by", session.user.id)
+                .order("created_at", { ascending: false });
+
+              if (!referralError && referralData) {
+                setReferrals(referralData);
+                console.log("Referrals list updated:", referralData.length);
+              }
+            }
+          )
+          .subscribe();
       }
     };
 
     setupRealtime();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+      }
+      if (referralsChannel) {
+        supabase.removeChannel(referralsChannel);
       }
     };
   }, []);
@@ -94,8 +126,12 @@ const Dashboard = () => {
       .eq("referred_by", session.user.id)
       .order("created_at", { ascending: false });
 
-    if (!referralError && referralData) {
-      setReferrals(referralData);
+    if (referralError) {
+      console.error("Error fetching referrals:", referralError);
+      toast.error("Failed to load referrals");
+    } else {
+      console.log("Referrals loaded:", referralData?.length || 0);
+      setReferrals(referralData || []);
     }
 
     // Generate QR code only if profile has referral_code and hasn't been generated yet
@@ -346,9 +382,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {referrals.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    No referrals yet
-                  </p>
+                  <div className="text-center py-8 space-y-2">
+                    <p className="text-muted-foreground">
+                      No referrals yet
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Share your referral link to start earning referrals!
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {referrals.map((referral) => (

@@ -80,6 +80,13 @@ export type Database = {
         Args: { parent_user_id: string }
         Returns: undefined
       }
+      apply_referral: {
+        Args: {
+          new_user_id: string
+          referrer_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

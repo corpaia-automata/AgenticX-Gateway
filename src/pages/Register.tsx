@@ -275,43 +275,33 @@ const Register = () => {
       }
 
       // Step 5: Handle referral linking (if valid referral code was provided)
+      // This runs AFTER profile creation and does NOT block registration
       if (referralCode && referralCodeValid && referrerId) {
         console.log("🔗 Processing referral link...");
 
         // Prevent self-referral: Check if the new user's ID matches the referrer's ID
         if (newUserProfile.id === referrerId) {
           console.warn("⚠️ Self-referral detected, skipping referral link");
-          toast.warning("You cannot refer yourself. Registration successful, but referral was not applied.");
         } else {
           // Check if already referred (shouldn't happen, but safety check)
           if (newUserProfile.referred_by) {
             console.warn("⚠️ User already has a referrer, skipping referral link");
-            toast.warning("You are already linked to a referrer. Registration successful.");
           } else {
-            // Update the new user's profile with referred_by
-            const { error: updateError } = await supabase
-              .from("profiles")
-              .update({ referred_by: referrerId })
-              .eq("id", authData.user.id);
+            // Apply referral via RPC (handles both referred_by and referral_count)
+            const { error: applyError } = await supabase.rpc("apply_referral", {
+              new_user_id: authData.user.id,
+              referrer_id: referrerId,
+            });
 
-            if (updateError) {
-              console.error("❌ Error updating referral:", updateError);
-              toast.error("Registration successful, but failed to link referral. Please contact support.");
-            } else {
-              console.log("✅ Referral linked successfully");
-
-              // Increment parent's referral count
-              const { error: incrementError } = await supabase.rpc("increment_referral_count", {
-                parent_user_id: referrerId,
+            if (applyError) {
+              // Log error silently (console only) - do not block registration
+              console.error("❌ Error applying referral:", {
+                error: applyError,
+                new_user_id: authData.user.id,
+                referrer_id: referrerId,
               });
-
-              if (incrementError) {
-                console.error("❌ Error incrementing referral count:", incrementError);
-                toast.warning("Registration successful, but failed to update referral count.");
-              } else {
-                console.log("✅ Referral count incremented for referrer");
-                toast.success("Registration successful! Referral linked.");
-              }
+            } else {
+              console.log("✅ Referral applied successfully");
             }
           }
         }

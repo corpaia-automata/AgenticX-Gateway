@@ -46,11 +46,17 @@ const Success = () => {
 
     setProfile(profileData);
 
-    // Generate QR code if not exists
-    if (!profileData.qr_code_url) {
+    // Generate QR code only if:
+    // 1. Profile has a referral_code (required for QR generation)
+    // 2. QR code URL doesn't exist yet
+    if (profileData.referral_code && !profileData.qr_code_url) {
+      console.log("Generating QR code for referral code:", profileData.referral_code);
       await generateQRCode(profileData.referral_code, session.user.id);
-    } else {
+    } else if (profileData.qr_code_url) {
+      // QR code already exists, use it
       setQrCodeUrl(profileData.qr_code_url);
+    } else {
+      console.warn("Cannot generate QR code: referral_code missing from profile");
     }
 
     setLoading(false);
@@ -58,16 +64,32 @@ const Success = () => {
 
   const generateQRCode = async (referralCode: string, userId: string) => {
     try {
+      // Ensure referral code exists before generating QR
+      if (!referralCode || !referralCode.trim()) {
+        console.error("Cannot generate QR code: referral code is empty");
+        return;
+      }
+
+      console.log("Calling generate-qr function with:", { referralCode, userId });
       const { data, error } = await supabase.functions.invoke("generate-qr", {
         body: { referralCode, userId },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("QR generation function error:", error);
+        throw error;
+      }
 
-      setQrCodeUrl(data.qrCodeUrl);
-    } catch (error) {
+      if (data?.qrCodeUrl) {
+        setQrCodeUrl(data.qrCodeUrl);
+        console.log("QR code generated successfully");
+      } else {
+        console.warn("QR generation returned no URL:", data);
+      }
+    } catch (error: any) {
       console.error("Error generating QR code:", error);
-      toast.error("Failed to generate QR code");
+      // Don't show error toast - QR is optional, registration succeeded
+      // Just log for debugging
     }
   };
 
@@ -161,7 +183,13 @@ const Success = () => {
                 {qrCodeUrl && (
                   <div className="flex justify-center">
                     <div className="bg-white p-4 rounded-lg border-4 border-primary">
-                      <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                      <img 
+                        src={qrCodeUrl} 
+                        alt="QR Code" 
+                        className="w-48 h-48"
+                        crossOrigin="anonymous"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
                 )}

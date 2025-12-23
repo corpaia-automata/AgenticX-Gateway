@@ -44,8 +44,8 @@ const Register = () => {
       let referralCodeValid = false;
       
       if (referralCode) {
-        // Normalize referral code: trim, uppercase, and remove any whitespace
-        const normalizedCode = referralCode.trim().toUpperCase().replace(/\s+/g, '');
+        // Normalize referral code: trim, lowercase, and remove any whitespace (DB uses lowercase)
+        const normalizedCode = referralCode.trim().toLowerCase().replace(/\s+/g, '');
         console.log("🔍 Validating referral code:", {
           original: referralCode,
           normalized: normalizedCode,
@@ -58,24 +58,24 @@ const Register = () => {
         );
 
         if (functionError) {
+          // Function error (network, function doesn't exist, etc.) - don't show invalid warning
+          // Just log and continue without referral
           console.error("❌ Error validating referral code via function:", {
             code: functionError.code,
             message: functionError.message,
             details: functionError.details,
           });
           
-          // Check if function doesn't exist
+          // Only show error if function doesn't exist (critical issue)
           if (functionError.message?.includes('function') && functionError.message?.includes('does not exist')) {
             console.error("❌ validate_referral_code function not found. Please run the SQL script in Supabase.");
-            toast.error(
-              "Referral validation function not set up. Please contact support or register without a referral code."
-            );
-          } else {
-            toast.warning("Could not validate referral code. You can still register without it.");
+            // Don't block registration - just log the error
           }
+          // Don't show warning for other errors - registration continues without referral
           referralCodeValid = false;
-        } else if (!referrerIdFromFunction) {
-          // Function returned null - code doesn't exist
+        } else if (referrerIdFromFunction === null || referrerIdFromFunction === undefined) {
+          // Function explicitly returned null - code doesn't exist
+          // This is the ONLY case where we show "invalid referral code" warning
           console.warn("⚠️ Referral code not found:", normalizedCode);
           toast.warning("Invalid referral code. You can still register without it.");
           referralCodeValid = false;

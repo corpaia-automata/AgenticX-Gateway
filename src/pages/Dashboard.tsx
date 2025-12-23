@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [referrals, setReferrals] = useState<any[]>([]);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [qrLoading, setQrLoading] = useState(false);
+  const qrGeneratedRef = useRef(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -55,7 +58,71 @@ const Dashboard = () => {
       setReferrals(referralData);
     }
 
+    // Generate QR code only if profile has referral_code and hasn't been generated yet
+    if (profileData.referral_code && !qrGeneratedRef.current) {
+      // Check if QR code already exists in profile
+      if (profileData.qr_code_url) {
+        setQrCodeUrl(profileData.qr_code_url);
+        qrGeneratedRef.current = true;
+      } else {
+        // Generate QR code for referral URL (only once)
+        qrGeneratedRef.current = true;
+        await generateQRCode(profileData.referral_code, session.user.id);
+      }
+    }
+
     setLoading(false);
+  };
+
+  const generateQRCode = async (referralCode: string, userId: string) => {
+    try {
+      // Ensure referral code exists before generating QR
+      if (!referralCode || !referralCode.trim()) {
+        console.error("Cannot generate QR code: referral code is empty");
+        return;
+      }
+
+      setQrLoading(true);
+      console.log("Generating QR code for referral code:", referralCode);
+
+      // Use the referral URL format: https://gatewaypass.agenticx.world/register?ref=CODE
+      const referralUrl = `https://gatewaypass.agenticx.world/register?ref=${referralCode}`;
+
+      // Try Supabase function first (if available)
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-qr", {
+          body: { referralCode, userId },
+        });
+
+        if (!error && data?.qrCodeUrl) {
+          setQrCodeUrl(data.qrCodeUrl);
+          console.log("QR code generated successfully via Supabase function");
+          return;
+        }
+      } catch (functionError) {
+        console.log("Supabase function not available or failed, using client-side generation");
+      }
+
+      // Fallback to client-side generation using qrcode library
+      const QRCode = (await import("qrcode")).default;
+      
+      const qrDataUrl = await QRCode.toDataURL(referralUrl, {
+        errorCorrectionLevel: "M",
+        width: 400,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+
+      setQrCodeUrl(qrDataUrl);
+      console.log("QR code generated successfully client-side");
+    } catch (error: any) {
+      console.error("Error generating QR code:", error);
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -63,8 +130,9 @@ const Dashboard = () => {
     navigate("/login");
   };
 
-  const referralLink = profile
-    ? `${window.location.origin}/register?ref=${profile.referral_code}`
+  // Use the referral URL format: https://gatewaypass.agenticx.world/register?ref=CODE
+  const referralLink = profile?.referral_code
+    ? `https://gatewaypass.agenticx.world/register?ref=${profile.referral_code}`
     : "";
 
   const copyLink = () => {
@@ -194,10 +262,27 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {profile?.qr_code_url && (
+            {/* QR Code Display */}
+            {profile?.referral_code && (
               <div className="flex justify-center">
                 <div className="bg-white p-4 rounded-lg border-4 border-primary">
-                  <img src={profile.qr_code_url} alt="QR Code" className="w-48 h-48" />
+                  {qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Referral QR Code" 
+                      className="w-48 h-48"
+                      crossOrigin="anonymous"
+                      loading="lazy"
+                    />
+                  ) : qrLoading ? (
+                    <div className="w-48 h-48 flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : (
+                    <div className="w-48 h-48 flex items-center justify-center text-muted-foreground text-sm">
+                      QR Code loading...
+                    </div>
+                  )}
                 </div>
               </div>
             )}

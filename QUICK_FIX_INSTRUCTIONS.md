@@ -113,3 +113,4 @@ The Register component will:
 - ✅ `supabase/simple_profile_creation.sql` - Complete, simple SQL script
 - ✅ `src/pages/Register.tsx` - Updated to use correct parameter names
 
+

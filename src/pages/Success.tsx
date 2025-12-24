@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { CheckCircle, Copy, Share2, QrCode, Loader2 } from "lucide-react";
+import { HeroBackground } from "@/components/HeroBackground";
 
 const Success = () => {
   const navigate = useNavigate();
@@ -110,15 +111,15 @@ const Success = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-premium">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <HeroBackground className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
+      </HeroBackground>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-premium p-4">
-      <Card className="w-full max-w-2xl border-border bg-card shadow-premium">
+    <HeroBackground className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-2">
             <CheckCircle className="h-10 w-10 text-primary" />
@@ -213,7 +214,7 @@ const Success = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </HeroBackground>
   );
 };
 

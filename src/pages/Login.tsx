@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { HeroBackground } from "@/components/HeroBackground";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -100,8 +101,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-premium p-4">
-      <Card className="w-full max-w-md border-border bg-card shadow-premium">
+    <HeroBackground className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-full max-w-md border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center bg-gradient-primary bg-clip-text text-transparent">
             Welcome Back
@@ -161,7 +162,7 @@ const Login = () => {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </HeroBackground>
   );
 };
 

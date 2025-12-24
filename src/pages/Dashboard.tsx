@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Copy, LogOut, QrCode, Users, Loader2, Lock, Unlock, Download, Gift } from "lucide-react";
 import CommunityCard from "@/components/CommunityCard";
+import { HeroBackground } from "@/components/HeroBackground";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -227,9 +228,9 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-premium">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <HeroBackground className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
+      </HeroBackground>
     );
   }
 
@@ -243,8 +244,8 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-premium p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <HeroBackground className="min-h-screen p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6 relative z-10">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -499,7 +500,7 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </HeroBackground>
   );
 };
 

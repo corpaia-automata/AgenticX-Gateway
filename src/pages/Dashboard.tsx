@@ -182,7 +182,7 @@ const Dashboard = () => {
 
       // Fallback to client-side generation using qrcode library
       const QRCode = (await import("qrcode")).default;
-      
+
       const qrDataUrl = await QRCode.toDataURL(referralUrl, {
         errorCorrectionLevel: "M",
         width: 400,
@@ -340,9 +340,9 @@ const Dashboard = () => {
                   <div className="flex justify-center">
                     <div className="bg-white p-4 rounded-lg border-4 border-primary">
                       {qrCodeUrl ? (
-                        <img 
-                          src={qrCodeUrl} 
-                          alt="Referral QR Code" 
+                        <img
+                          src={qrCodeUrl}
+                          alt="Referral QR Code"
                           className="w-48 h-48"
                           crossOrigin="anonymous"
                           loading="lazy"
@@ -424,29 +424,67 @@ const Dashboard = () => {
                   Community Card Reward
                 </CardTitle>
                 <CardDescription>
-                  Unlock your exclusive Black Community Card by referring 5 people
+                  Unlock your exclusive Platinum Community Card by referring 5 people
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Community Card Display */}
                 <div className="flex justify-center">
-                  <div
-                    id="community-card"
-                    className={`relative inline-block ${!hasUnlockedCard ? "blur-sm" : ""}`}
-                  >
-                    <CommunityCard 
-                      name={profile?.name || ""} 
-                      cardNumber={profile?.id || ""} 
-                    />
+                  <div className="relative w-full max-w-sm" id="community-card">
+                    {/* ATM Card Design */}
+                    <div className={`relative aspect-[85.6/53.98] rounded-2xl overflow-hidden shadow-2xl ${!hasUnlockedCard ? "blur-md" : ""}`}>
+                      {/* Card Background Gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-purple-900 to-slate-900"></div>
+
+                      {/* Card Chip */}
+                      <div className="absolute top-6 left-6 w-12 h-10 bg-gradient-to-br from-yellow-400/30 to-yellow-600/30 rounded-md"></div>
+
+                      {/* Card Number Area */}
+                      <div className="absolute bottom-20 left-6 right-6">
+                        <div className="flex gap-2">
+                          <div className="h-8 w-12 bg-white/20 rounded"></div>
+                          <div className="h-8 w-12 bg-white/20 rounded"></div>
+                          <div className="h-8 w-12 bg-white/20 rounded"></div>
+                          <div className="h-8 w-12 bg-white/20 rounded"></div>
+                        </div>
+                      </div>
+
+                      {/* Cardholder Name */}
+                      <div className="absolute bottom-12 left-6">
+                        {hasUnlockedCard && profile?.name ? (
+                          <p className="text-white/90 font-semibold text-sm uppercase tracking-wider">
+                            {profile.name}
+                          </p>
+                        ) : (
+                          <div className="h-4 w-32 bg-white/20 rounded"></div>
+                        )}
+                      </div>
+
+                      {/* Expiry Date */}
+                      <div className="absolute bottom-12 right-6">
+                        <div className="h-4 w-16 bg-white/20 rounded"></div>
+                      </div>
+
+                      {/* Platinum Badge */}
+                      <div className="absolute top-6 right-6">
+                        <div className="px-3 py-1 bg-gradient-to-r from-accent/40 to-accent/20 rounded-full">
+                          <span className="text-xs font-semibold text-white/80">PLATINUM</span>
+                        </div>
+                      </div>
+
+                      {/* Decorative Elements */}
+                      <div className="absolute inset-0 opacity-20">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/30 rounded-full blur-2xl"></div>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/30 rounded-full blur-xl"></div>
+                      </div>
+                    </div>
+
+                    {/* Lock Icon Overlay - Only show when locked */}
                     {!hasUnlockedCard && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-lg backdrop-blur-sm z-10">
-                        <Lock className="h-12 w-12 text-muted-foreground mb-4" />
-                        <p className="text-white font-semibold text-lg mb-2">
-                          Card Locked
-                        </p>
-                        <p className="text-white/80 text-sm text-center px-4">
-                          Refer 5 people to unlock this card
-                        </p>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-black/60 backdrop-blur-sm rounded-full p-6 border-4 border-accent/50 shadow-2xl">
+                          <Lock className="h-16 w-16 text-accent" strokeWidth={2} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -481,8 +519,8 @@ const Dashboard = () => {
                         <Download className="h-4 w-4" />
                         Download Card
                       </Button>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => {
                           const cardElement = document.getElementById("community-card");
                           if (cardElement) {

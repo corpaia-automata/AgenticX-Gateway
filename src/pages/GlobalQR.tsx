@@ -49,7 +49,7 @@ const GlobalQR = () => {
   };
 
   const shareWhatsApp = () => {
-    const text = `Join our exclusive Black Card Community! Scan the QR code or use this link: ${registrationLink}`;
+    const text = `Join our exclusive AI-Driven Business Community! Scan the QR code or use this link: ${registrationLink}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, "_blank");
   };

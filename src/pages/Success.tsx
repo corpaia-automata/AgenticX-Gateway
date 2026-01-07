@@ -141,7 +141,7 @@ const Success = () => {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">•</span>
-                <span>Refer 5 people to unlock your exclusive Black Community Card</span>
+                <span>Refer 5 people to unlock your Exclusive Platinum Community Card</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary mt-1">•</span>
@@ -184,9 +184,9 @@ const Success = () => {
                 {qrCodeUrl && (
                   <div className="flex justify-center">
                     <div className="bg-white p-4 rounded-lg border-4 border-primary">
-                      <img 
-                        src={qrCodeUrl} 
-                        alt="QR Code" 
+                      <img
+                        src={qrCodeUrl}
+                        alt="QR Code"
                         className="w-48 h-48"
                         crossOrigin="anonymous"
                         loading="lazy"

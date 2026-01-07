@@ -25,3 +25,4 @@ export const HeroBackground = ({ children, className = "" }: HeroBackgroundProps
   );
 };
 
+

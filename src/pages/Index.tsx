@@ -44,9 +44,9 @@ const Index = () => {
             {/* Left: Content */}
             <div className="text-center lg:text-left space-y-8">
               <div className="inline-block">
-                <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-6">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium text-primary">AI-Driven Business Community</span>
+                <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-4 py-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-white" />
+                  <span className="text-sm font-medium text-white">AgenticX AI-Driven Business Community</span>
                 </div>
               </div>
 
@@ -58,7 +58,7 @@ const Index = () => {
                 </span>
               </h1>
 
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
                 Unlock exclusive rewards, early innovation access, and premium benefits by participating.
               </p>
 

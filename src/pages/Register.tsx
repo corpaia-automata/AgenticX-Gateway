@@ -43,7 +43,7 @@ const Register = () => {
       // Step 1: Validate referral code early (if provided)
       let referrerId: string | null = null;
       let referralCodeValid = false;
-      
+
       if (referralCode) {
         // Normalize referral code: trim, lowercase, and remove any whitespace (DB uses lowercase)
         const normalizedCode = referralCode.trim().toLowerCase().replace(/\s+/g, '');
@@ -51,7 +51,7 @@ const Register = () => {
           original: referralCode,
           normalized: normalizedCode,
         });
-        
+
         // Use the validate_referral_code function (SECURITY DEFINER bypasses RLS)
         const { data: referrerIdFromFunction, error: functionError } = await supabase.rpc(
           "validate_referral_code",
@@ -66,7 +66,7 @@ const Register = () => {
             message: functionError.message,
             details: functionError.details,
           });
-          
+
           // Only show error if function doesn't exist (critical issue)
           if (functionError.message?.includes('function') && functionError.message?.includes('does not exist')) {
             console.error("❌ validate_referral_code function not found. Please run the SQL script in Supabase.");
@@ -309,30 +309,30 @@ const Register = () => {
                 new_user_id: authData.user.id,
                 referrer_id: referrerId,
               });
-              
+
               // Show toast notification so user knows something went wrong
               toast.error("Referral link failed to apply. Registration successful, but referral not counted.");
             } else {
               console.log("✅ Referral applied successfully", applyData);
-              
+
               // Verify the update worked by checking the profile
               const { data: verifyProfile } = await supabase
                 .from("profiles")
                 .select("referred_by, referral_count")
                 .eq("id", authData.user.id)
                 .single();
-              
+
               console.log("🔍 Verification - New user profile:", verifyProfile);
-              
+
               // Check referrer's updated count
               const { data: verifyReferrer } = await supabase
                 .from("profiles")
                 .select("referral_count")
                 .eq("id", referrerId)
                 .single();
-              
+
               console.log("🔍 Verification - Referrer's count:", verifyReferrer);
-              
+
               if (verifyProfile?.referred_by === referrerId) {
                 toast.success("Referral link applied successfully!");
               } else {
@@ -379,7 +379,7 @@ const Register = () => {
 
   return (
     <HeroBackground className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
+      <Card className="w-full border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center bg-gradient-primary bg-clip-text text-transparent">
             Join the Community

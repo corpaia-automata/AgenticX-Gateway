@@ -61,6 +61,27 @@ export type Database = {
           },
         ]
       }
+      qr_codes: {
+        Row: {
+          id: string
+          code: string
+          target_url: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          target_url: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          target_url?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

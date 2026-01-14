@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Copy, Share2, Download, QrCode, ArrowLeft, Loader2 } from "lucide-react";
+import { HeroBackground } from "@/components/HeroBackground";
+import { supabase } from "@/integrations/supabase/client";
 import QRCode from "qrcode";
+
+const GLOBAL_QR_CODE = "GLOBAL"; // Special code for the global/public QR code
 
 const GlobalQR = () => {
   const navigate = useNavigate();
@@ -12,16 +16,84 @@ const GlobalQR = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    generateGlobalQR();
+    loadOrGenerateGlobalQR();
   }, []);
 
-  const generateGlobalQR = async () => {
+  const loadOrGenerateGlobalQR = async () => {
     try {
       setLoading(true);
-      // Generate QR code for global registration (no referral code)
-      const registrationUrl = `${window.location.origin}/register`;
       
-      // Generate QR code as data URL
+      // Use the specific registration URL
+      const registrationUrl = "https://gatewaypass.agenticx.world/register/";
+
+      // Step 1: Check if global QR code already exists in Supabase
+      const { data: existingQR, error: fetchError } = await supabase
+        .from("qr_codes")
+        .select("*")
+        .eq("code", GLOBAL_QR_CODE)
+        .single();
+
+      if (existingQR && !fetchError) {
+        // Global QR exists, generate the QR image from stored URL
+        console.log("✅ Loading existing global QR code from database");
+        const qrDataUrl = await QRCode.toDataURL(existingQR.target_url, {
+          errorCorrectionLevel: "M",
+          width: 400,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+        setQrCodeUrl(qrDataUrl);
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Global QR doesn't exist, create it
+      console.log("📝 Creating new global QR code in database");
+      
+      // Store QR metadata in Supabase
+      const { data: insertedData, error: insertError } = await supabase
+        .from("qr_codes")
+        .insert({
+          code: GLOBAL_QR_CODE,
+          target_url: registrationUrl,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // If insert fails (might be duplicate), try to fetch again
+        if (insertError.code === "23505") { // Unique constraint violation
+          console.log("⚠️ Global QR code already exists, fetching...");
+          const { data: retryData } = await supabase
+            .from("qr_codes")
+            .select("*")
+            .eq("code", GLOBAL_QR_CODE)
+            .single();
+          
+          if (retryData) {
+            const qrDataUrl = await QRCode.toDataURL(retryData.target_url, {
+              errorCorrectionLevel: "M",
+              width: 400,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "#FFFFFF",
+              },
+            });
+            setQrCodeUrl(qrDataUrl);
+            setLoading(false);
+            return;
+          }
+        }
+        throw new Error(`Failed to store global QR code: ${insertError.message}`);
+      }
+
+      console.log("✅ Global QR code metadata stored:", insertedData);
+
+      // Step 3: Generate QR image (client-side)
       const qrDataUrl = await QRCode.toDataURL(registrationUrl, {
         errorCorrectionLevel: "M",
         width: 400,
@@ -33,15 +105,33 @@ const GlobalQR = () => {
       });
 
       setQrCodeUrl(qrDataUrl);
-    } catch (error) {
-      console.error("Error generating QR code:", error);
-      toast.error("Failed to generate QR code");
+      toast.success("Global QR code generated and saved!");
+    } catch (error: any) {
+      console.error("❌ Error generating global QR code:", error);
+      toast.error(error.message || "Failed to generate QR code");
+      
+      // Fallback: Generate QR without storing (for backwards compatibility)
+      try {
+        const registrationUrl = "https://gatewaypass.agenticx.world/register/";
+        const qrDataUrl = await QRCode.toDataURL(registrationUrl, {
+          errorCorrectionLevel: "M",
+          width: 400,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+        setQrCodeUrl(qrDataUrl);
+      } catch (fallbackError) {
+        console.error("❌ Fallback QR generation also failed:", fallbackError);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const registrationLink = `${window.location.origin}/register`;
+  const registrationLink = "https://gatewaypass.agenticx.world/register/";
 
   const copyLink = () => {
     navigator.clipboard.writeText(registrationLink);
@@ -66,14 +156,14 @@ const GlobalQR = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-premium">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <HeroBackground className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary relative z-10" />
+      </HeroBackground>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-premium p-4 md:p-8">
+    <HeroBackground className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -157,7 +247,7 @@ const GlobalQR = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </HeroBackground>
   );
 };
 

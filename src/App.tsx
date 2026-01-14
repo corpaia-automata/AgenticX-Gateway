@@ -12,6 +12,7 @@ import Success from "./pages/Success";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import TestConnection from "./pages/TestConnection";
+import GlobalQR from "./pages/GlobalQR";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -67,6 +68,7 @@ const App = () => {
             />
             <Route path="/admin" element={<Admin />} />
             <Route path="/test-connection" element={<TestConnection />} />
+            <Route path="/global-qr" element={<GlobalQR />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

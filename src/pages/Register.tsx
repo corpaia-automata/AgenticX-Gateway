@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { HeroBackground } from "@/components/HeroBackground";
+import { QRCodeGenerator } from "@/components/QRCodeGenerator";
 
 const Register = () => {
   const [searchParams] = useSearchParams();
@@ -379,100 +380,104 @@ const Register = () => {
 
   return (
     <HeroBackground className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-center bg-gradient-primary bg-clip-text text-transparent">
-            Join the Community
-          </CardTitle>
-          <CardDescription className="text-center text-muted-foreground">
-            {referralCode
-              ? "You've been invited! Create your account to get started."
-              : "Create your account and start referring"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1 (555) 000-0000"
-                required
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                minLength={6}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="bg-secondary border-border"
-              />
-            </div>
-            {referralCode && (
-              <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                <p className="text-sm text-primary">
-                  Referral Code: <span className="font-mono font-bold">{referralCode}</span>
-                </p>
+      <div className="w-full max-w-4xl space-y-6">
+        <Card className="w-full border-border bg-card/90 backdrop-blur-sm shadow-premium relative z-10">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-3xl font-bold text-center bg-gradient-primary bg-clip-text text-transparent">
+              Join the Community
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
+              {referralCode
+                ? "You've been invited! Create your account to get started."
+                : "Create your account and start referring"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="bg-secondary border-border"
+                />
               </div>
-            )}
-            <Button
-              type="submit"
-              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                "Create Account"
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="bg-secondary border-border"
+                />
+              </div>
+              {referralCode && (
+                <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                  <p className="text-sm text-primary">
+                    Referral Code: <span className="font-mono font-bold">{referralCode}</span>
+                  </p>
+                </div>
               )}
-            </Button>
-          </form>
-          <div className="mt-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <a href="/login" className="text-primary hover:underline">
-                Sign in
-              </a>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+              <Button
+                type="submit"
+                className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating Account...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </Button>
+            </form>
+            <div className="mt-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{" "}
+                <a href="/login" className="text-primary hover:underline">
+                  Sign in
+                </a>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <QRCodeGenerator />
+      </div>
     </HeroBackground>
   );
 };

@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroBackground } from "@/components/HeroBackground";
+import QRCode from "qrcode";
 import {
   QrCode,
   Shield,
@@ -21,10 +22,15 @@ import {
   ExternalLink,
   Mail,
   FileText,
+  Loader2,
 } from "lucide-react";
+
+const GLOBAL_QR_CODE = "GLOBAL"; // Special code for the global/public QR code
 
 const Index = () => {
   const navigate = useNavigate();
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
+  const [qrLoading, setQrLoading] = useState(true);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -33,7 +39,116 @@ const Index = () => {
         navigate("/dashboard");
       }
     });
+
+    // Load global QR code
+    loadGlobalQR();
   }, [navigate]);
+
+  const loadGlobalQR = async () => {
+    try {
+      setQrLoading(true);
+      
+      // Use the specific registration URL
+      const registrationUrl = "https://gatewaypass.agenticx.world/register/";
+
+      // Step 1: Check if global QR code already exists in Supabase
+      const { data: existingQR, error: fetchError } = await supabase
+        .from("qr_codes")
+        .select("*")
+        .eq("code", GLOBAL_QR_CODE)
+        .single();
+
+      if (existingQR && !fetchError) {
+        // Global QR exists, generate the QR image from stored URL
+        const qrDataUrl = await QRCode.toDataURL(existingQR.target_url, {
+          errorCorrectionLevel: "M",
+          width: 600,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+        setQrCodeUrl(qrDataUrl);
+        setQrLoading(false);
+        return;
+      }
+
+      // Step 2: Global QR doesn't exist, create it
+      // Store QR metadata in Supabase
+      const { data: insertedData, error: insertError } = await supabase
+        .from("qr_codes")
+        .insert({
+          code: GLOBAL_QR_CODE,
+          target_url: registrationUrl,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // If insert fails (might be duplicate), try to fetch again
+        if (insertError.code === "23505") {
+          const { data: retryData } = await supabase
+            .from("qr_codes")
+            .select("*")
+            .eq("code", GLOBAL_QR_CODE)
+            .single();
+          
+          if (retryData) {
+            const qrDataUrl = await QRCode.toDataURL(retryData.target_url, {
+              errorCorrectionLevel: "M",
+              width: 400,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "#FFFFFF",
+              },
+            });
+            setQrCodeUrl(qrDataUrl);
+            setQrLoading(false);
+            return;
+          }
+        }
+        // If still fails, generate QR without storing (fallback)
+        console.warn("Failed to store global QR, using fallback");
+      } else if (insertedData) {
+        console.log("✅ Global QR code stored:", insertedData);
+      }
+
+      // Step 3: Generate QR image (client-side)
+      const qrDataUrl = await QRCode.toDataURL(registrationUrl, {
+        errorCorrectionLevel: "M",
+        width: 400,
+        margin: 2,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+      });
+
+      setQrCodeUrl(qrDataUrl);
+    } catch (error: any) {
+      console.error("❌ Error loading global QR code:", error);
+      // Fallback: Generate QR without storing
+      try {
+        const registrationUrl = "https://gatewaypass.agenticx.world/register/";
+        const qrDataUrl = await QRCode.toDataURL(registrationUrl, {
+          errorCorrectionLevel: "M",
+          width: 400,
+          margin: 2,
+          color: {
+            dark: "#000000",
+            light: "#FFFFFF",
+          },
+        });
+        setQrCodeUrl(qrDataUrl);
+      } catch (fallbackError) {
+        console.error("❌ Fallback QR generation also failed:", fallbackError);
+      }
+    } finally {
+      setQrLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,14 +207,34 @@ const Index = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-purple-600/20 rounded-2xl blur-2xl transform scale-110"></div>
                 <div className="relative bg-card/50 backdrop-blur-sm border border-primary/20 rounded-2xl p-8 shadow-2xl">
-                  <div className="w-64 h-64 rounded-xl border-2 border-primary/30 overflow-hidden">
-                    <img
-                      src="/master.JPG"
-                      alt="QR Code - Scan to Get Started"
-                      className="w-full h-full object-cover"
-                    />
+                  <div
+                    onClick={() => navigate("/global-qr")}
+                    className="w-64 h-64 rounded-xl border-2 border-primary/30 overflow-hidden cursor-pointer hover:border-primary/50 transition-all group bg-white p-4 flex items-center justify-center"
+                  >
+                    {qrLoading ? (
+                      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                    ) : qrCodeUrl ? (
+                      <img
+                        src={qrCodeUrl}
+                        alt="QR Code - Scan to Get Started"
+                        className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                      />
+                    ) : ( 
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <QrCode className="h-12 w-12 mb-2" />
+                        <p className="text-sm">QR Code</p>
+                      </div>
+                    )}
                   </div>
                   <p className="text-center text-sm text-muted-foreground mt-4">Scan to Get Started</p>
+                  {/* <Button
+                    onClick={() => navigate("/global-qr")}
+                    variant="outline"
+                    className="w-full mt-4 border-primary/30 hover:bg-primary/10"
+                  >
+                    <QrCode className="mr-2 h-4 w-4" />
+                    View Global QR Code
+                  </Button> */}
                 </div>
               </div>
             </div>
@@ -453,7 +588,7 @@ const Index = () => {
       {/* 7. FINAL CALL TO ACTION */}
       <section className="py-24 bg-gradient-to-br from-slate-950 via-purple-950/30 to-slate-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-foreground mb-6">
             Start with One Scan.
             <br />
             Build Something Bigger.
